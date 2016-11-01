@@ -75,12 +75,13 @@
 #include <netflow.h>
 #include <hash.h>
 #include <mem.h>
+#include "netflow_proto.h"
 
 struct DLT dlt[] = {
-#ifdef DLT_NULL	
+#ifdef DLT_NULL
 	{DLT_NULL, 0, 4, 4, "NULL"},
 #endif
-#ifdef DLT_EN10MB	
+#ifdef DLT_EN10MB
 	{DLT_EN10MB, 12, 14, 17, "EN10MB"},
 #endif
 #ifdef DLT_IEEE802
@@ -569,150 +570,6 @@ int put_into(struct Flow *flow, int flag
 	return ret;
 }
 
-void *fill(int fields, uint16_t *format, struct Flow *flow, void *p)
-{
-	int i;
-
-	for (i = 0; i < fields; i++) {
-#if ((DEBUG) & DEBUG_F)
-		my_log(LOG_DEBUG, "F: field %04d at %x", format[i], (unsigned) p);
-#endif
-		switch (format[i]) {
-			case NETFLOW_IPV4_SRC_ADDR:
-				((struct in_addr *) p)->s_addr = flow->sip.s_addr;
-				p += NETFLOW_IPV4_SRC_ADDR_SIZE;
-				break;
-
-			case NETFLOW_IPV4_DST_ADDR:
-				((struct in_addr *) p)->s_addr = flow->dip.s_addr;
-				p += NETFLOW_IPV4_DST_ADDR_SIZE;
-				break;
-
-			case NETFLOW_INPUT_SNMP:
-				*((uint16_t *) p) = snmp_input_index;
-				p += NETFLOW_INPUT_SNMP_SIZE;
-				break;
-
-			case NETFLOW_OUTPUT_SNMP:
-				*((uint16_t *) p) = snmp_output_index;
-				p += NETFLOW_OUTPUT_SNMP_SIZE;
-				break;
-
-			case NETFLOW_PKTS_32:
-				*((uint32_t *) p) = htonl(flow->pkts);
-				p += NETFLOW_PKTS_32_SIZE;
-				break;
-
-			case NETFLOW_BYTES_32:
-				*((uint32_t *) p) = htonl(flow->size);
-				p += NETFLOW_BYTES_32_SIZE;
-				break;
-
-			case NETFLOW_FIRST_SWITCHED:
-				*((uint32_t *) p) = htonl(getuptime(&flow->ctime));
-				p += NETFLOW_FIRST_SWITCHED_SIZE;
-				break;
-
-			case NETFLOW_LAST_SWITCHED:
-				*((uint32_t *) p) = htonl(getuptime(&flow->mtime));
-				p += NETFLOW_LAST_SWITCHED_SIZE;
-				break;
-
-			case NETFLOW_L4_SRC_PORT:
-				*((uint16_t *) p) = flow->sp;
-				p += NETFLOW_L4_SRC_PORT_SIZE;
-				break;
-
-			case NETFLOW_L4_DST_PORT:
-				*((uint16_t *) p) = flow->dp;
-				p += NETFLOW_L4_DST_PORT_SIZE;
-				break;
-
-			case NETFLOW_PROT:
-				*((uint8_t *) p) = flow->proto;
-				p += NETFLOW_PROT_SIZE;
-				break;
-
-			case NETFLOW_SRC_TOS:
-				*((uint8_t *) p) = flow->tos;
-				p += NETFLOW_SRC_TOS_SIZE;
-				break;
-
-			case NETFLOW_TCP_FLAGS:
-				*((uint8_t *) p) = flow->tcp_flags;
-				p += NETFLOW_TCP_FLAGS_SIZE;
-				break;
-
-			case NETFLOW_VERSION:
-				*((uint16_t *) p) = htons(netflow->Version);
-				p += NETFLOW_VERSION_SIZE;
-				break;
-
-			case NETFLOW_COUNT:
-				*((uint16_t *) p) = htons(emit_count);
-				p += NETFLOW_COUNT_SIZE;
-				break;
-
-			case NETFLOW_UPTIME:
-				*((uint32_t *) p) = htonl(getuptime(&emit_time));
-				p += NETFLOW_UPTIME_SIZE;
-				break;
-
-			case NETFLOW_UNIX_SECS:
-				*((uint32_t *) p) = htonl(emit_time.sec);
-				p += NETFLOW_UNIX_SECS_SIZE;
-				break;
-
-			case NETFLOW_UNIX_NSECS:
-				*((uint32_t *) p) = htonl(emit_time.usec * 1000);
-				p += NETFLOW_UNIX_NSECS_SIZE;
-				break;
-
-			case NETFLOW_FLOW_SEQUENCE:
-				//*((uint32_t *) p) = htonl(emit_sequence);
-				*((uint32_t *) p) = 0;
-				p += NETFLOW_FLOW_SEQUENCE_SIZE;
-				break;
-
-			case NETFLOW_PAD8:
-			/* Unsupported (uint8_t) */
-			case NETFLOW_ENGINE_TYPE:
-			case NETFLOW_ENGINE_ID:
-			case NETFLOW_FLAGS7_1:
-			case NETFLOW_SRC_MASK:
-			case NETFLOW_DST_MASK:
-				*((uint8_t *) p) = 0;
-				p += NETFLOW_PAD8_SIZE;
-				break;
-
-			case NETFLOW_PAD16:
-			/* Unsupported (uint16_t) */
-			case NETFLOW_SRC_AS:
-			case NETFLOW_DST_AS:
-			case NETFLOW_FLAGS7_2:
-				*((uint16_t *) p) = 0;
-				p += NETFLOW_PAD16_SIZE;
-				break;
-
-			case NETFLOW_PAD32:
-			/* Unsupported (uint32_t) */
-			case NETFLOW_IPV4_NEXT_HOP:
-			case NETFLOW_ROUTER_SC:
-				*((uint32_t *) p) = 0;
-				p += NETFLOW_PAD32_SIZE;
-				break;
-
-			default:
-				my_log(LOG_CRIT, "fill(): Unknown format at %x[%d]: %d",
-					format, i, format[i]);
-				exit(1);
-		}
-	}
-#if ((DEBUG) & DEBUG_F)
-	my_log(LOG_DEBUG, "F: return %x", (unsigned) p);
-#endif
-	return p;
-}
 
 #ifdef CLONEBASED_THREADS
 void setuser() {
@@ -758,7 +615,7 @@ void *emit_thread()
 		flows_emit = flows_emit->next;
 #if ((DEBUG) & DEBUG_I)
 		emit_queue--;
-#endif		
+#endif
 		pthread_mutex_unlock(&emit_mutex);
 
 #ifdef UPTIME_TRICK
@@ -778,7 +635,7 @@ void *emit_thread()
 			peer_rot_cur = 0;
 			for (i = 0; i < npeers; i++) {
 				if (peers[i].type == PEER_MIRROR) goto sendreal;
-				if (peers[i].type == PEER_ROTATE) 
+				if (peers[i].type == PEER_ROTATE)
 					if (peer_rot_cur++ == peer_rot_work) {
 					sendreal:
 						if (netflow->SeqOffset)
@@ -819,7 +676,7 @@ void *emit_thread()
 #endif
 		}
 	}
-}	
+}
 
 void *unpending_thread()
 {
@@ -853,7 +710,7 @@ void *unpending_thread()
 			) < 0) {
 #if ((DEBUG) & DEBUG_I)
 			pkts_lost_unpending++;
-#endif				
+#endif
 		}
 
 #if ((DEBUG) & DEBUG_U)
@@ -932,7 +789,7 @@ void *scan_thread()
 						flows_emit = flow;
 #if ((DEBUG) & DEBUG_I)
 						emit_queue++;
-#endif				
+#endif
 						pthread_mutex_unlock(&emit_mutex);
 						flow = *flowpp;
 						continue;
@@ -1304,7 +1161,7 @@ int main(int argc, char **argv)
 	}
 	if (parms[Kflag].count) link_layer_size = atoi(parms[Kflag].arg);
 	link_layer = parms[kflag].count;
-	if (parms[uflag].count) 
+	if (parms[uflag].count)
 		if ((pw = getpwnam(parms[uflag].arg)) == NULL) {
 			fprintf(stderr, "getpwnam(%s): %s\n", parms[uflag].arg, errno ? strerror(errno) : "Unknown user");
 			exit(1);

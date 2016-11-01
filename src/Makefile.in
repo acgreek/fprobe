@@ -52,7 +52,7 @@ CONFIG_CLEAN_FILES =
 am__installdirs = "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(man8dir)"
 sbinPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(sbin_PROGRAMS)
-am_fprobe_OBJECTS = fprobe.$(OBJEXT) netflow.$(OBJEXT) hash.$(OBJEXT) \
+am_fprobe_OBJECTS = fprobe.$(OBJEXT) netflow_proto.$(OBJEXT) netflow.$(OBJEXT) hash.$(OBJEXT) \
 	mem.$(OBJEXT) my_getopt.$(OBJEXT) my_log.$(OBJEXT)
 fprobe_OBJECTS = $(am_fprobe_OBJECTS)
 fprobe_LDADD = $(LDADD)

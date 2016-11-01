@@ -1,6 +1,7 @@
 sbin_PROGRAMS = fprobe
 fprobe_SOURCES = fprobe.c fprobe.h \
 	netflow.c netflow.h \
+	netflow_proto.c netflow_proto.h \
 	hash.c hash.h \
 	mem.c mem.h \
 	my_getopt.c my_getopt.h \
